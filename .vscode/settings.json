@@ -1,3 +1,4 @@
 {
-    "cmake.configureOnOpen": false
+    "cmake.configureOnOpen": false,
+    "cmake.sourceDirectory": "C:/Users/Jan/Documents/Freestyle/2023/flutter/shopping_list_app/linux"
 }
