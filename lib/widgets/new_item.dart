@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 import 'package:flutter/material.dart';
 import 'package:shopping_list_app/data/categories.dart';
 import 'package:shopping_list_app/models/category.dart';
@@ -18,6 +21,7 @@ class _NewItemState extends State<NewItem> {
   String _enteredName = '';
   int _enteredQuantity = 1;
   Category _enteredCategory = categories[Categories.vegetables]!;
+  bool _isSending = false;
 
   @override
   Widget build(BuildContext context) {
@@ -118,14 +122,22 @@ class _NewItemState extends State<NewItem> {
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () {
-                      _formKey.currentState!.reset();
-                    },
+                    onPressed: _isSending
+                        ? null
+                        : () {
+                            _formKey.currentState!.reset();
+                          },
                     child: const Text('Reset'),
                   ),
                   ElevatedButton(
-                    onPressed: _saveItem,
-                    child: const Text('Add item'),
+                    onPressed: _isSending ? null : _saveItem,
+                    child: _isSending
+                        ? const SizedBox(
+                            height: 16,
+                            width: 16,
+                            child: CircularProgressIndicator(),
+                          )
+                        : const Text('Add item'),
                   ),
                 ],
               )
@@ -136,15 +148,59 @@ class _NewItemState extends State<NewItem> {
     );
   }
 
-  void _saveItem() {
+  void _saveItem() async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
-      Navigator.of(context).pop(GroceryItem(
-        id: DateTime.now().toString(),
-        name: _enteredName,
-        quantity: _enteredQuantity,
-        category: _enteredCategory,
-      ));
+
+      setState(() {
+        _isSending = true;
+      });
+
+      final GroceryItem newItem;
+
+      try {
+        final Uri url = Uri.https(
+          'shopping-list-app-765f0-default-rtdb.europe-west1.firebasedatabase.app',
+          'shopping-list.json',
+        );
+        http.Response res = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: json.encode({
+            'name': _enteredName,
+            'quantity': _enteredQuantity,
+            'category': _enteredCategory.name,
+          }),
+        );
+
+        if (!context.mounted) return;
+
+// Check response
+        if (res.statusCode < 200 || res.statusCode >= 300) {
+          ScaffoldMessenger.of(context).clearSnackBars();
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Error pushing new item to server; ${res.body.toString()}'),
+            duration: const Duration(seconds: 2),
+          ));
+          return;
+        }
+
+        // Parse response
+        final Map<String, dynamic> resData = json.decode(res.body);
+        newItem = GroceryItem(
+          id: resData['name'],
+          name: _enteredName,
+          quantity: _enteredQuantity,
+          category: _enteredCategory,
+        );
+      } finally {
+        setState(() {
+          _isSending = false;
+        });
+      }
+
+      Navigator.of(context).pop(newItem);
     }
   }
 }
