@@ -175,7 +175,7 @@ class _NewItemState extends State<NewItem> {
 
         if (!context.mounted) return;
 
-// Check response
+        // Check response
         if (res.statusCode < 200 || res.statusCode >= 300) {
           ScaffoldMessenger.of(context).clearSnackBars();
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
